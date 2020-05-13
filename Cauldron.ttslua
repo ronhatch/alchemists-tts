@@ -1,0 +1,1269 @@
+math.randomseed(os.time()) -- so that the results are always different
+function FYShuffle( tInput )
+    local tReturn = {}
+    for i = #tInput, 1, -1 do
+        local j = math.random(i)
+        tInput[i], tInput[j] = tInput[j], tInput[i]
+        table.insert(tReturn, tInput[i])
+    end
+    return tReturn
+end
+
+buttony = -0.7
+
+colorRed = {1,0,0}
+colorGreen = {0,1,0}
+colorBlue = {0,0,1}
+colorBlack = {0,0,0}
+colorWhite = {1,1,1}
+
+--RGB
+formulas = {
+{-1,-1,-1,0},
+{-1,-1,1,1},
+{-1,1,-1,3},
+{-1,1,1,2},
+{1,-1,-1,2},
+{1,-1,1,3},
+{1,1,-1,1},
+{1,1,1,0}
+}
+
+--RGB
+fixed_formulas = {
+{-1,-1,-1,0},
+{1,-1,-1,2},
+{-1,1,-1,3},
+{1,1,-1,1},
+{-1,-1,1,1},
+{1,-1,1,3},
+{-1,1,1,2},
+{1,1,1,0}
+}
+
+ingredientes = {
+'Mandrake',
+'Claw',
+'Scorpion',
+'Feather',
+'Mushroom',
+'Fern',
+'Lotus',
+'Frog'
+}
+
+ing_list = {
+'Mushroom',
+'Fern',
+'Frog',
+'Claw',
+'Lotus',
+'Mandrake',
+'Scorpion',
+'Feather'
+}
+
+--This is one of the ingredients that activates the golem
+golemIng = 1
+--Change the sign of this color to get the other ingredient to activate the golem
+golemColor = 1
+
+--These are what makes the golem react
+golemEars = {1,1}
+golemChest = {2,1}
+
+function getNum(formula)
+  num = 0
+  if formula[1]>0 then
+    num=1
+  end
+  if formula[2]>0 then
+    num=num+2
+  end
+  if formula[3]>0 then
+    num=num+4
+  end
+  return num
+end
+
+function getBig(formula)
+  if (formula[1] == formula[2]) then
+    if (formula[1] == formula[3]) then
+      return 0
+    else
+      return 1
+    end
+  elseif (formula[1] == formula[3]) then
+    return 3
+  else
+    return 2
+  end
+end
+
+function getCode()
+  result = 0
+  local mult=1
+  for i=1,8 do
+    local num = getNum(formulas[i])
+    result = result + (num*mult)
+    mult = mult*10
+  end
+  --Adds Golem
+  result = result*48 + golemIng*6 + golemColor
+  return result
+end
+
+function numberToText(code)
+  result = ''
+  local temp=code
+  local digit
+  while(temp>0)do
+    temp2 = temp % 36
+    if(temp2<10)then
+      digit = ''..temp2
+    else
+      digit = string.char(string.byte('A') + temp2 - 10)
+    end
+    --print(temp2 .. ' -> ' .. digit)
+    result = result .. digit
+    temp = math.floor(temp/36)
+  end
+  return result
+end
+
+function textToNumber(text)
+  --print('Text: '..text)
+  result = 0
+  local digit
+  local i
+  local charAByte = string.byte('A')
+  local char0Byte = string.byte('0')
+  for i=string.len(text),1,-1 do
+    local char = string.sub(text, i, i)
+    local charByte = string.byte(char)
+    if charByte >= charAByte then
+      digit = charByte + 10 - charAByte
+    else
+      digit = charByte - char0Byte
+    end
+    --print('['..i..']'..char .. ' -> '..digit)
+    result = result * 36 + digit
+  end
+  return result
+end
+
+function binarize(code)
+  bincode={}
+  local temp = code
+  local resto
+  for i=7,0,-1 do
+    resto = temp % 10
+    local temp2 = resto
+    local resto2
+    for j=3,1,-1 do
+      resto2 = temp2 % 2
+      --print((i*3+j)..' '..resto2..' '..temp2..'   '..temp)
+      bincode[i*3+j] = resto2
+      temp2 = math.floor(temp2/2)
+    end
+    temp = math.floor(temp/10)
+  end
+  --local binstr=''
+  --for i=0,7 do
+    --for j=1,3 do
+       --binstr = binstr..bincode[i*3+j]
+    --end
+    --binstr = binstr .. ' '
+  --end
+  --print(binstr)
+  return bincode
+end
+
+function hexarize(code)
+  local bincode = binarize(code)
+  hexcode=''
+  local hex={'A','B','C','D','E','F'}
+  local temp
+  for i=0,5 do
+    temp = bincode[i*4+1]*8 + bincode[i*4+2]*4 + bincode[i*4+3]*2 + bincode[i*4+4]
+    if (temp < 10) then
+      hexcode = hexcode .. temp
+    else
+      hexcode = hexcode .. hex[temp-9]
+    end
+  end
+  return hexcode
+end
+
+function dehexarize(hexcode)
+  local bincode = {}
+  for i=0,5 do
+    local char = string.sub(hexcode, i+1, i+1)
+    local charcode = getCharCode(char)
+    for j=1,4 do
+      bincode[i*4+j] = charcode[j]
+    end
+  end
+
+  code = 0
+  for i=0,7 do
+    local temp = 0
+    for j=1,3 do
+       temp = temp*2 + bincode[i*3+j]
+    end
+    code = code*10 + temp
+  end
+  return code
+end
+
+function getCharCode(char)
+  local value = string.byte(char)-string.byte("0")
+  if (value > 15) then
+    value = value - 7
+  end
+  --print('Char: '.. char .. ' ' .. value)
+  local resto
+  charcode = {}
+  for i=4,1,-1 do
+    resto = value % 2
+    charcode[i] = resto
+    value = math.floor(value/2)
+  end
+  --for i=1,4 do
+    --print(charcode[i])
+  --end
+  --print('')
+  return charcode
+end
+
+function codify()
+  local code
+end
+
+lastRound = false
+debunk = 'Frog'
+debunk2 = 'Lotus'
+
+function mainMenu()
+  printToAll('Rounds 1 to 5', {1,1,1})
+  self.clearButtons()
+  self.createButton({click_function = 'debunkMenu',function_owner=self,label='Debunk',position={-1,buttony,1.5},width=800})
+  self.createButton({click_function = 'sellPotionMenu',function_owner=self,label='Sell Potion',position={1,buttony,1.5},width=800})
+  self.createButton({click_function = 'craftPotion',function_owner=self,label='Test On Student',position={-1,buttony,2},width=800})
+  self.createButton({click_function = 'craftPotion',function_owner=self,label='Drink Potion',position={1,buttony,2},width=800})
+  self.createButton({click_function = 'bookToken',function_owner=self,label='Visit Library',position={-1,buttony,2.5},width=800})
+  self.createButton({click_function = 'researchGolem',function_owner=self,label='Research Golem',position={1,buttony,2.5},width=800})
+  self.createButton({click_function = 'newGame',function_owner=self,label='New Game',position={-1,buttony,3.5},width=800})
+  --self.createButton({click_function = 'endGame',function_owner=self,label='End Game',position={0,buttony,3},width=800})
+  self.createButton({click_function = 'readCode',function_owner=self,label='Load Game',position={1,buttony,3.5},width=800})
+  self.createButton({click_function = 'lastRoundMenu',function_owner=self,label='FINAL ROUND',position={1,buttony,1},width=800})
+  self.createButton({click_function = 'doNothing',function_owner=self,label='ROUNDS 1 TO 5',position={-1,buttony,1},width=800,color={0.5,0.5,0.5}})
+  self.createButton({click_function = 'exportCode',function_owner=self,label='EXPECTO CODIGUM',position={0,buttony,4},width=1000})
+  lastRound = false
+end
+
+function lastRoundMenu()
+  printToAll('Final round', {1,1,1})
+  self.clearButtons()
+  self.createButton({click_function = 'debunkMenu',function_owner=self,label='Debunk',position={-1,buttony,1.5},width=800})
+  self.createButton({click_function = 'sellPotionMenu',function_owner=self,label='Sell Potion',position={1,buttony,1.5},width=800})
+  self.createButton({click_function = 'exhPotionMenu',function_owner=self,label='Exhibit Potion',position={-1,buttony,2},width=800})
+  self.createButton({click_function = 'craftPotion',function_owner=self,label='Drink Potion',position={1,buttony,2},width=800})
+  self.createButton({click_function = 'bookToken',function_owner=self,label='Visit Library',position={-1,buttony,2.5},width=800})
+  self.createButton({click_function = 'researchGolem',function_owner=self,label='Research Golem',position={1,buttony,2.5},width=800})
+  self.createButton({click_function = 'endGame',function_owner=self,label='End Game',position={0,buttony,3},width=800})
+  self.createButton({click_function = 'newGame',function_owner=self,label='New Game',position={-1,buttony,3.5},width=800})
+  self.createButton({click_function = 'readCode',function_owner=self,label='Load Game',position={1,buttony,3.5},width=800})
+  self.createButton({click_function = 'doNothing',function_owner=self,label='FINAL ROUND',position={1,buttony,1},width=800,color={0.5,0.5,0.5}})
+  self.createButton({click_function = 'mainMenu',function_owner=self,label='ROUNDS 1 TO 5',position={-1,buttony,1},width=800})
+  lastRound = true
+end
+
+function doNothing()
+end
+
+function sellPotionMenu()
+  self.clearButtons()
+  self.createButton({click_function = 'sellPotionRP',function_owner=self,label='Red Positive',position={-2,buttony,1.5},width=800})
+  self.createButton({click_function = 'sellPotionGP',function_owner=self,label='Green Positive',position={0,buttony,1.5},width=800})
+  self.createButton({click_function = 'sellPotionBP',function_owner=self,label='Blue Positive',position={2,buttony,1.5},width=800})
+  self.createButton({click_function = 'sellPotionRN',function_owner=self,label='Red Negative',position={-2,buttony,2},width=800})
+  self.createButton({click_function = 'sellPotionGN',function_owner=self,label='Green Negative',position={0,buttony,2},width=800})
+  self.createButton({click_function = 'sellPotionBN',function_owner=self,label='Blue Negative',position={2,buttony,2},width=800})
+  if(lastRound)then
+    self.createButton({click_function = 'lastRoundMenu',function_owner=self,label='Back',position={0,buttony,2.5},width=800})
+  else
+    self.createButton({click_function = 'mainMenu',function_owner=self,label='Back',position={0,buttony,2.5},width=800})
+  end
+end
+
+function exhPotionMenu()
+  self.clearButtons()
+  self.createButton({click_function = 'exhPotionRP',function_owner=self,label='Red Positive',position={-2,buttony,1.5},width=800})
+  self.createButton({click_function = 'exhPotionGP',function_owner=self,label='Green Positive',position={0,buttony,1.5},width=800})
+  self.createButton({click_function = 'exhPotionBP',function_owner=self,label='Blue Positive',position={2,buttony,1.5},width=800})
+  self.createButton({click_function = 'exhPotionRN',function_owner=self,label='Red Negative',position={-2,buttony,2},width=800})
+  self.createButton({click_function = 'exhPotionGN',function_owner=self,label='Green Negative',position={0,buttony,2},width=800})
+  self.createButton({click_function = 'exhPotionBN',function_owner=self,label='Blue Negative',position={2,buttony,2},width=800})
+  if(lastRound)then
+    self.createButton({click_function = 'lastRoundMenu',function_owner=self,label='Back',position={0,buttony,2.5},width=800})
+  else
+    self.createButton({click_function = 'mainMenu',function_owner=self,label='Back',position={0,buttony,2.5},width=800})
+  end
+end
+
+function reminder2(color, i)
+  text = 'You used the following ingredient for this: ' .. i
+  printToColor(text, color, colorBlack)
+end
+
+function reminder(color, i, j)
+  text = 'You used the following ingredients for this: ' .. i .. ', ' .. j
+  printToColor(text, color, colorBlack)
+end
+
+function sellPotionRP(obj, color)
+  local name = Player[color].steam_name
+  printToAll(name..' tries to make a Red Positive potion...',colorRed)
+  sellPotion(obj,color,{1,1})
+end
+
+function sellPotionGP(obj, color)
+  local name = Player[color].steam_name
+  printToAll(name..' tries to make a Green Positive potion...',colorGreen)
+  sellPotion(obj,color,{2,1})
+end
+
+function sellPotionBP(obj, color)
+  local name = Player[color].steam_name
+  printToAll(name..' tries to make a Blue Positive potion...',colorBlue)
+  sellPotion(obj,color,{3,1})
+end
+
+function sellPotionRN(obj, color)
+  local name = Player[color].steam_name
+  printToAll(name..' tries to make a Red Negative potion...',colorRed)
+  sellPotion(obj,color,{1,-1})
+end
+
+function sellPotionGN(obj, color)
+  local name = Player[color].steam_name
+  printToAll(name..' tries to make a Green Negative potion...',colorGreen)
+  sellPotion(obj,color,{2,-1})
+end
+
+function sellPotionBN(obj, color)
+  local name = Player[color].steam_name
+  printToAll(name..' tries to make a Blue Negative potion...',colorBlue)
+  sellPotion(obj,color,{3,-1})
+end
+
+function sellPotion(obj, color, desired)
+  if(self.getQuantity()!=2)then
+    printToAll('You need exactly two ingredients to make a potion',{0,0,0})
+  else
+    local tabela = self.getObjects()
+    local ing1 = tabela[1]
+    local ing2 = tabela[2]
+    local i = getIngredient(ing1.name)
+    local j = getIngredient(ing2.name)
+    if(i==0 or j==0)then
+      printToAll('Invalid ingredient',{0,0,0})
+    else
+      local cor = combina(formulas[i],formulas[j])
+      local text = compare(cor,desired)
+      printToAll(text, {1,1,1})
+      reminder(color, ing1.name, ing2.name)
+    end
+  end
+end
+
+function exhPotionRP(obj, color)
+  local name = Player[color].steam_name
+  printToAll(name..' tries to make a Red Positive potion...',colorRed)
+  exhPotion(obj,color,{1,1})
+end
+
+function exhPotionGP(obj, color)
+  local name = Player[color].steam_name
+  printToAll(name..' tries to make a Green Positive potion...',colorGreen)
+  exhPotion(obj,color,{2,1})
+end
+
+function exhPotionBP(obj, color)
+  local name = Player[color].steam_name
+  printToAll(name..' tries to make a Blue Positive potion...',colorBlue)
+  exhPotion(obj,color,{3,1})
+end
+
+function exhPotionRN(obj, color)
+  local name = Player[color].steam_name
+  printToAll(name..' tries to make a Red Negative potion...',colorRed)
+  exhPotion(obj,color,{1,-1})
+end
+
+function exhPotionGN(obj, color)
+  local name = Player[color].steam_name
+  printToAll(name..' tries to make a Green Negative potion...',colorGreen)
+  exhPotion(obj,color,{2,-1})
+end
+
+function exhPotionBN(obj, color)
+  local name = Player[color].steam_name
+  printToAll(name..' tries to make a Blue Negative potion...',colorBlue)
+  exhPotion(obj,color,{3,-1})
+end
+
+function exhPotion(obj, color, desired)
+  if(self.getQuantity()!=2)then
+    printToAll('You need exactly two ingredients to make a potion',{0,0,0})
+  else
+    local tabela = self.getObjects()
+    local ing1 = tabela[1]
+    local ing2 = tabela[2]
+    local i = getIngredient(ing1.name)
+    local j = getIngredient(ing2.name)
+    if(i==0 or j==0)then
+      printToAll('Invalid ingredient',{0,0,0})
+    else
+      local cor = combina(formulas[i],formulas[j])
+      local text = compareExact(cor,desired)
+      printToAll(text, {1,1,1})
+      reminder(color, ing1.name, ing2.name)
+    end
+  end
+end
+
+function onLoad()
+    formulas = FYShuffle(formulas)
+    golemIng = math.random(8)
+    golemColor = math.random(6)
+    setupGolem()
+    --local code = hexarize(getCode())
+    local intCode = getCode()
+    local code = numberToText(intCode)
+    --printToAll('Code: '..code, {1,1,1})
+    printToAll('Code: '..code, {1,1,1})
+    --printToAll('IntCode: '..intCode, {1,1,1})
+    --printToAll('HexCode: '..numberToText(intCode), {1,1,1})
+    --print('A: ' .. string.byte('A'))
+    --print('0: ' .. string.byte('0'))
+    mainMenu()
+end
+
+function setupGolem()
+  --print(golemIng..' '..golemColor)
+  local golemF = formulas[golemIng]
+  --print(getFormula(golemF))
+  local i=0
+  local j=0
+  if(golemColor==1)then
+    i=2
+    j=3
+  elseif(golemColor==2)then
+    i=1
+    j=3
+  elseif(golemColor==3)then
+    i=1
+    j=2
+  elseif(golemColor==4)then
+    i=3
+    j=2
+  elseif(golemColor==5)then
+    i=3
+    j=1
+  elseif(golemColor==6)then
+    i=2
+    j=1
+  end
+  --print(i)
+  --print(j)
+  --print(golemF)
+  golemEars = {i,golemF[i]}
+  golemChest = {j,golemF[j]}
+  --print(i..' '..golemF[i])
+  --print(j..' '..golemF[j])
+end
+
+function exportCode(obj, color)
+  local pos = obj.getPosition()
+  pos[1] = pos[1]+1
+  local code = numberToText(getCode())
+  --printToAll('Code: '..code, {1,1,1})
+  printToAll('I will write the code again.', {1,1,1})
+  printToAll('Code: '..code, {1,1,1})
+
+  local card = spawnObject({type = "Notecard", position = pos})
+  card.setDescription(code)
+end
+
+function hide()
+  self.removeButton(7)
+  self.createButton({click_function = 'show',function_owner=self,label='Show',position={0,buttony,3},width=800})
+end
+
+function show()
+  self.removeButton(7)
+  self.createButton({click_function = 'hide',function_owner=self,label='Hide',position={0,buttony,3},width=800})
+end
+
+function readCode()
+  if (self.getQuantity()!=1) then
+    printToAll('Write the code of the game in the description of a notecard and put it here',{0,0,0})
+  else
+    --local code = dehexarize(self.getObjects()[1].description)
+    local code = textToNumber(self.getObjects()[1].description)
+    --print('Actual code: ' .. code)
+    --local temp = code % 10
+
+    --Reads new Golem data
+    golemColor = code % 6
+    code = math.floor(code/6)
+    golemIng = code % 8
+    code = math.floor(code/8)
+
+    local temp = code % 10
+    for i=1,8 do
+      for j=1,4 do
+        formulas[i][j] = fixed_formulas[temp+1][j]
+      end
+      code = math.floor(code/10)
+      temp = code % 10
+    end
+
+    setupGolem()
+
+    --formulas = FYShuffle(formulas)
+    printToAll('Game loaded!', {1,1,1})
+    local code = numberToText(getCode())
+    printToAll('Code: '..code, {1,1,1})
+  end
+end
+
+function newGame()
+  if((self.getQuantity()!=1) or (self.getObjects()[1].name != 'End Game'))then
+    printToAll('Put the End Game token here to start a new game',{0,0,0})
+  else
+    onLoad()
+  end
+end
+
+function debunkMenu()
+  self.clearButtons()
+  self.createButton({click_function = 'debunkApprentice',function_owner=self,label='Apprentice Debunking',position={-1.5,buttony,1.5},width=1000})
+  self.createButton({click_function = 'debunkMaster',function_owner=self,label='Master Debunking',position={1.5,buttony,1.5},width=1000})
+  if(lastRound)then
+    self.createButton({click_function = 'lastRoundMenu',function_owner=self,label='Back',position={0,buttony,2.5},width=800})
+  else
+    self.createButton({click_function = 'mainMenu',function_owner=self,label='Back',position={0,buttony,2.5},width=800})
+  end
+end
+
+function debunkApprentice()
+  self.clearButtons()
+  self.createButton({click_function = 'doNothing',function_owner=self,label='Apprentice Debunking',position={0,buttony,1},width=1000, color={0.5,0.5,0.5}})
+  self.createButton({click_function = 'debunkMushroomA',function_owner=self,label='Mushroom',position={-3,buttony,1.5},width=800})
+  self.createButton({click_function = 'debunkFernA',function_owner=self,label='Fern',position={-1,buttony,1.5},width=800})
+  self.createButton({click_function = 'debunkFrogA',function_owner=self,label='Frog',position={1,buttony,1.5},width=800})
+  self.createButton({click_function = 'debunkClawA',function_owner=self,label='Claw',position={3,buttony,1.5},width=800})
+  self.createButton({click_function = 'debunkLotusA',function_owner=self,label='Lotus',position={-3,buttony,2},width=800})
+  self.createButton({click_function = 'debunkMandrakeA',function_owner=self,label='Mandrake',position={-1,buttony,2},width=800})
+  self.createButton({click_function = 'debunkScorpionA',function_owner=self,label='Scorpion',position={1,buttony,2},width=800})
+  self.createButton({click_function = 'debunkFeatherA',function_owner=self,label='Feather',position={3,buttony,2},width=800})
+  if(lastRound)then
+    self.createButton({click_function = 'lastRoundMenu',function_owner=self,label='Back',position={0,buttony,2.5},width=800})
+  else
+    self.createButton({click_function = 'mainMenu',function_owner=self,label='Back',position={0,buttony,2.5},width=800})
+  end
+end
+
+function debunkMushroomA()
+  debunkApprenticeColor('Mushroom')
+end
+
+function debunkFernA()
+  debunkApprenticeColor('Fern')
+end
+
+function debunkFrogA()
+  debunkApprenticeColor('Frog')
+end
+
+function debunkClawA()
+  debunkApprenticeColor('Claw')
+end
+
+function debunkLotusA()
+  debunkApprenticeColor('Lotus')
+end
+
+function debunkMandrakeA()
+  debunkApprenticeColor('Mandrake')
+end
+
+function debunkScorpionA()
+  debunkApprenticeColor('Scorpion')
+end
+
+function debunkFeatherA()
+  debunkApprenticeColor('Feather')
+end
+
+function debunkApprenticeColor(ing)
+  debunk = ing
+  self.clearButtons()
+  self.createButton({click_function = 'doNothing',function_owner=self,label='Apprentice Debunking',position={0,buttony,1},width=1000, color={0.5,0.5,0.5}})
+  self.createButton({click_function = 'doNothing',function_owner=self,label=ing,position={0,buttony,1.5},width=800, color={0.5,0.5,0.5}})
+  self.createButton({click_function = 'debunkRedA',function_owner=self,label='Red',position={-2,buttony,2},width=800})
+  self.createButton({click_function = 'debunkGreenA',function_owner=self,label='Green',position={0,buttony,2},width=800})
+  self.createButton({click_function = 'debunkBlueA',function_owner=self,label='Blue',position={2,buttony,2},width=800})
+  if(lastRound)then
+    self.createButton({click_function = 'lastRoundMenu',function_owner=self,label='Back',position={0,buttony,2.5},width=800})
+  else
+    self.createButton({click_function = 'mainMenu',function_owner=self,label='Back',position={0,buttony,2.5},width=800})
+  end
+end
+
+function debunkRedA()
+  debunkColorA(1)
+end
+
+function debunkGreenA()
+  debunkColorA(2)
+end
+
+function debunkBlueA()
+  debunkColorA(3)
+end
+
+function debunkColorA(color)
+  local i = getIngredient(debunk)
+  local text = ingredientes[i] .. ' is '
+  if(color == 1)then
+    text = text .. 'Red '
+  elseif(color == 2)then
+    text = text .. 'Green '
+  else
+    text = text .. 'Blue '
+  end
+  if formulas[i][color]>0 then
+    text = text .. 'Positive'
+  else
+    text = text .. 'Negative'
+  end
+  printToAll(text, {1,1,1})
+end
+
+function debunkMaster()
+  debunk = ''
+  reloadDebunkMaster()
+end
+
+function reloadDebunkMaster()
+  local corList = {}
+  for i=1,8 do
+    if (debunk == ing_list[i]) then
+      corList[i] = {0.5,0.5,0.5}
+    else
+      corList[i] = {1,1,1}
+    end
+  end
+  --if(debunk != '')then
+    --printToAll(debunk, {0,0,0})
+  --end
+  self.clearButtons()
+  self.createButton({click_function = 'doNothing',function_owner=self,label='Master Debunking',position={0,buttony,1},width=1000, color={0.5,0.5,0.5}})
+  self.createButton({click_function = 'debunkMushroomM',function_owner=self,label='Mushroom',position={-3,buttony,1.5},width=800, color = corList[1]})
+  self.createButton({click_function = 'debunkFernM',function_owner=self,label='Fern',position={-1,buttony,1.5},width=800, color = corList[2]})
+  self.createButton({click_function = 'debunkFrogM',function_owner=self,label='Frog',position={1,buttony,1.5},width=800, color = corList[3]})
+  self.createButton({click_function = 'debunkClawM',function_owner=self,label='Claw',position={3,buttony,1.5},width=800, color = corList[4]})
+  self.createButton({click_function = 'debunkLotusM',function_owner=self,label='Lotus',position={-3,buttony,2},width=800, color = corList[5]})
+  self.createButton({click_function = 'debunkMandrakeM',function_owner=self,label='Mandrake',position={-1,buttony,2},width=800, color = corList[6]})
+  self.createButton({click_function = 'debunkScorpionM',function_owner=self,label='Scorpion',position={1,buttony,2},width=800, color = corList[7]})
+  self.createButton({click_function = 'debunkFeatherM',function_owner=self,label='Feather',position={3,buttony,2},width=800, color = corList[8]})
+  if(lastRound)then
+    self.createButton({click_function = 'lastRoundMenu',function_owner=self,label='Back',position={0,buttony,2.5},width=800})
+  else
+    self.createButton({click_function = 'mainMenu',function_owner=self,label='Back',position={0,buttony,2.5},width=800})
+  end
+end
+
+function debunkMushroomM()
+  local name = 'Mushroom'
+  if(debunk == '') then
+    debunk = name
+    reloadDebunkMaster()
+  elseif(debunk != name) then
+    debunk2 = name
+    debunkColorMMenu()
+  else
+    reloadDebunkMaster()
+  end
+end
+
+function debunkFernM()
+  local name = 'Fern'
+  if(debunk == '') then
+    debunk = name
+    reloadDebunkMaster()
+  elseif(debunk != name) then
+    debunk2 = name
+    debunkColorMMenu()
+  else
+    reloadDebunkMaster()
+  end
+end
+
+function debunkFrogM()
+  local name = 'Frog'
+  if(debunk == '') then
+    debunk = name
+    reloadDebunkMaster()
+  elseif(debunk != name) then
+    debunk2 = name
+    debunkColorMMenu()
+  else
+    reloadDebunkMaster()
+  end
+end
+
+function debunkClawM()
+  local name = 'Claw'
+  if(debunk == '') then
+    debunk = name
+    reloadDebunkMaster()
+  elseif(debunk != name) then
+    debunk2 = name
+    debunkColorMMenu()
+  else
+    reloadDebunkMaster()
+  end
+end
+
+function debunkLotusM()
+  local name = 'Lotus'
+  if(debunk == '') then
+    debunk = name
+    reloadDebunkMaster()
+  elseif(debunk != name) then
+    debunk2 = name
+    debunkColorMMenu()
+  else
+    reloadDebunkMaster()
+  end
+end
+
+function debunkMandrakeM()
+  local name = 'Mandrake'
+  if(debunk == '') then
+    debunk = name
+    reloadDebunkMaster()
+  elseif(debunk != name) then
+    debunk2 = name
+    debunkColorMMenu()
+  else
+    reloadDebunkMaster()
+  end
+end
+
+function debunkScorpionM()
+  local name = 'Scorpion'
+  if(debunk == '') then
+    debunk = name
+    reloadDebunkMaster()
+  elseif(debunk != name) then
+    debunk2 = name
+    debunkColorMMenu()
+  else
+    reloadDebunkMaster()
+  end
+end
+
+function debunkFeatherM()
+  local name = 'Feather'
+  if(debunk == '') then
+    debunk = name
+    reloadDebunkMaster()
+  elseif(debunk != name) then
+    debunk2 = name
+    debunkColorMMenu()
+  else
+    reloadDebunkMaster()
+  end
+end
+
+function debunkColorMMenu()
+  self.clearButtons()
+  self.createButton({click_function = 'doNothing',function_owner=self,label='Master Debunking',position={0,buttony,1},width=1000, color={0.5,0.5,0.5}})
+  self.createButton({click_function = 'doNothing',function_owner=self,label=debunk,position={-1,buttony,1.5},width=800, color={0.5,0.5,0.5}})
+  self.createButton({click_function = 'doNothing',function_owner=self,label=debunk2,position={1,buttony,1.5},width=800, color={0.5,0.5,0.5}})
+  self.createButton({click_function = 'debunkPotionRP',function_owner=self,label='Red Positive',position={-2,buttony,2},width=800})
+  self.createButton({click_function = 'debunkPotionGP',function_owner=self,label='Green Positive',position={0,buttony,2},width=800})
+  self.createButton({click_function = 'debunkPotionBP',function_owner=self,label='Blue Positive',position={2,buttony,2},width=800})
+  self.createButton({click_function = 'debunkPotionRN',function_owner=self,label='Red Negative',position={-2,buttony,2.5},width=800})
+  self.createButton({click_function = 'debunkPotionGN',function_owner=self,label='Green Negative',position={0,buttony,2.5},width=800})
+  self.createButton({click_function = 'debunkPotionBN',function_owner=self,label='Blue Negative',position={2,buttony,2.5},width=800})
+  self.createButton({click_function = 'debunkSoup',function_owner=self,label='Soup',position={0,buttony,3},width=800})
+  if(lastRound)then
+    self.createButton({click_function = 'lastRoundMenu',function_owner=self,label='Back',position={0,buttony,3.5},width=800})
+  else
+    self.createButton({click_function = 'mainMenu',function_owner=self,label='Back',position={0,buttony,3.5},width=800})
+  end
+end
+
+function debunkPotionRP(obj, color)
+  local name = Player[color].steam_name
+  printToAll(name..' checks if '.. debunk ..' and '.. debunk2 .. ' make a Red Positive potion...',colorRed)
+  debunkPotion(obj,color,{1,1})
+end
+
+function debunkPotionGP(obj, color)
+  local name = Player[color].steam_name
+  printToAll(name..' checks if '.. debunk ..' and '.. debunk2 .. ' make a Green Positive potion...',colorGreen)
+  debunkPotion(obj,color,{2,1})
+end
+
+function debunkPotionBP(obj, color)
+  local name = Player[color].steam_name
+  printToAll(name..' checks if '.. debunk ..' and '.. debunk2 .. ' make a Blue Positive potion...',colorBlue)
+  debunkPotion(obj,color,{3,1})
+end
+
+function debunkPotionRN(obj, color)
+  local name = Player[color].steam_name
+  printToAll(name..' checks if '.. debunk ..' and '.. debunk2 .. ' make a Red Negative potion...',colorRed)
+  debunkPotion(obj,color,{1,-1})
+end
+
+function debunkPotionGN(obj, color)
+  local name = Player[color].steam_name
+  printToAll(name..' checks if '.. debunk ..' and '.. debunk2 .. ' make a Green Negative potion...',colorGreen)
+  debunkPotion(obj,color,{2,-1})
+end
+
+function debunkPotionBN(obj, color)
+  local name = Player[color].steam_name
+  printToAll(name..' checks if '.. debunk ..' and '.. debunk2 .. ' make a Blue Negative potion...',colorBlue)
+  debunkPotion(obj,color,{3,-1})
+end
+
+function debunkSoup(obj, color)
+  local name = Player[color].steam_name
+  printToAll(name..' checks if '.. debunk ..' and '.. debunk2 .. ' make Soup ...',{0,0,0})
+  debunkPotion(obj,color,{0,0})
+end
+
+function debunkPotion(obj, color, desired)
+  local i = getIngredient(debunk)
+  local j = getIngredient(debunk2)
+  if(i==0 or j==0)then
+    printToAll('Invalid ingredient',{0,0,0})
+  else
+    local cor = combina(formulas[i],formulas[j])
+    local text = compareM(cor,desired)
+    printToAll(text, {1,1,1})
+    --reminder(color, ing1.name, ing2.name)
+  end
+end
+
+function compareM(potion,desired)
+  if potion[2] == desired[2] and potion[1] == desired[1] then
+      return 'The combination is correct!'
+  else
+      return 'The combination is wrong!'
+  end
+end
+
+
+
+
+
+
+
+
+
+
+-- Deprecated
+function debunk()
+  if(self.getQuantity()!=2)then
+    printToAll('You need one ingredient and a token to debunk a theory',{0,0,0})
+  else
+    local tabela = self.getObjects()
+    local ing1 = tabela[1]
+    local i = getIngredient(ing1.name)
+    local token = tabela[2].name
+    local desired
+    if token=='Positive Red Potion'then
+      desired = {1,1}
+    elseif token=='Negative Red Potion'then
+      desired = {1,-1}
+    elseif token=='Positive Green Potion'then
+      desired = {2,1}
+    elseif token=='Negative Green Potion'then
+      desired = {2,-1}
+    elseif token=='Positive Blue Potion'then
+      desired = {3,1}
+    elseif token=='Negative Blue Potion'then
+      desired = {3,-1}
+    else
+      desired = {0,0}
+    end
+
+    if(desired[1]>0)then
+      if(i==0)then
+        printToAll('Invalid ingredient',{0,0,0})
+      else
+        local text = ingredientes[i] .. ' is '
+        if(desired[1] == 1)then
+          text = text .. 'Red '
+        elseif(desired[1] == 2)then
+          text = text .. 'Green '
+        else
+          text = text .. 'Blue '
+        end
+        if formulas[i][desired[1]]>0 then
+          text = text .. 'Positive'
+        else
+          text = text .. 'Negative'
+        end
+        printToAll(text, {1,1,1})
+      end
+    else
+      printToAll('Invalid Token', {0,0,0})
+    end
+
+  end
+end
+
+function endGame()
+  if((self.getQuantity()!=1) or (self.getObjects()[1].name != 'End Game'))then
+    printToAll('Put the End Game token here to end the game',{0,0,0})
+  else
+    for i=1,8 do
+      printToAll(ingredientes[i] ..': ' ..  getFormula(formulas[i]), {1,1,1})
+    end
+  end
+  local text = 'Smoke comes out of the Golem\'s ears in presence of a '
+  if(golemEars[2]>0)then
+    text = text..'Big '
+  else
+    text = text..'Small '
+  end
+
+  if(golemEars[1] == 1) then
+    text = text..'Red'
+  elseif(golemEars[1] == 2)then
+    text = text..'Green'
+  else
+    text = text..'Blue'
+  end
+  text = text .. ' ingredient'
+  printToAll(text,{1,1,1})
+
+  text = 'The Golem\'s chest glows in presence of a '
+  if(golemChest[2]>0)then
+    text = text..'Big '
+  else
+    text = text..'Small '
+  end
+  if(golemChest[1] == 1) then
+    text = text..'Red'
+  elseif(golemChest[1] == 2)then
+    text = text..'Green'
+  else
+    text = text..'Blue'
+  end
+
+  text = text .. ' ingredient'
+  printToAll(text,{1,1,1})
+end
+
+function bookToken(obj, color)
+  local bookShuffle = {1,2,3,4,5,6,7,8}
+  bookShuffle = FYShuffle(bookShuffle)
+  bookIng = {ingredientes[bookShuffle[1]],ingredientes[bookShuffle[2]],ingredientes[bookShuffle[3]],ingredientes[bookShuffle[4]]}
+  printToColor('Ingredient 1 = ' .. bookIng[1] .. '\nIngredient 2 = '..bookIng[2].. '\nIngredient 3 = '..bookIng[3].. '\nIngredient 4 = '..bookIng[4] , color, colorBlack)
+  self.clearButtons()
+  self.createButton({click_function = 'book1',function_owner=self,label='Ingredient 1',position={-1.5,buttony,1.5},width=800})
+  self.createButton({click_function = 'book2',function_owner=self,label='Ingredient 2',position={1.5,buttony,1.5},width=800})
+  self.createButton({click_function = 'book3',function_owner=self,label='Ingredient 3',position={-1.5,buttony,2},width=800})
+  self.createButton({click_function = 'book4',function_owner=self,label='Ingredient 4',position={1.5,buttony,2},width=800})
+  if(lastRound)then
+    self.createButton({click_function = 'lastRoundMenu',function_owner=self,label='Back',position={0,buttony,2.5},width=800})
+  else
+    self.createButton({click_function = 'mainMenu',function_owner=self,label='Back',position={0,buttony,2.5},width=800})
+  end
+end
+
+function book1(obj, color)
+  useBookToken(color,1)
+end
+
+function book2(obj, color)
+  useBookToken(color,2)
+end
+
+function book3(obj, color)
+  useBookToken(color,3)
+end
+
+function book4(obj, color)
+  useBookToken(color,4)
+end
+
+function useBookToken(color, ing)
+  if(self.getQuantity()!=1)then
+    printToAll('You need a book token!',{0,0,0})
+  else
+    local tabela = self.getObjects()
+    local ing1 = tabela[1]
+
+    if (tabela[1].name == 'Book Token') then
+      local i = getIngredient(bookIng[ing])
+
+      local index = formulas[i][4]
+      if (index==0) then
+        index = 1
+      end
+
+      printToColor('You chose ' .. bookIng[ing], color, colorBlack)
+      --print(getFormula(formulas[i]))
+      if (formulas[i][index]>0) then
+        printToAll('That ingredient is Lunar.', {1,1,1})
+      else
+        printToAll('That ingredient is Solar.', {1,1,1})
+      end
+    else
+      printToAll('That is not a book token!', {0,0,0})
+    end
+  end
+end
+
+function compare(potion,desired)
+  if(potion[2]==0)then
+    return 'You made soup!'
+  elseif potion[2] == desired[2] then
+    if potion[1] == desired[1] then
+      return 'You made the right potion!'
+    elseif desired[2] > 0 then
+      return 'You made the wrong color, but at least it\'s positive'
+    else
+      return 'You made the wrong color, but at least it\'s negative'
+    end
+  else
+      return 'Wrong potion!'
+  end
+end
+
+function compareExact(potion,desired)
+  if potion[2]!=0 and potion[2] == desired[2] and potion[1] == desired[1] then
+      return 'You made the right potion!'
+  else
+      return 'Wrong potion!'
+  end
+end
+
+function craftPotion(obj, color)
+    --print('Make a potion')
+
+    --for i=1,8 do
+    --    print(ingredientes[i])
+    --    print(formulas[i][1],formulas[i][2],formulas[i][3])
+    --    printFormula(formulas[i])
+    --end
+
+    if(self.getQuantity()!=2)then
+      printToAll('You need exactly two ingredients to make a potion',{0,0,0})
+    else
+      local tabela = self.getObjects()
+      local ing1 = tabela[1]
+      local ing2 = tabela[2]
+      local i = getIngredient(ing1.name)
+      local j = getIngredient(ing2.name)
+      if(i==0 or j==0)then
+        printToAll('Invalid ingredient',{0,0,0})
+      else
+        local cor = combina(formulas[i],formulas[j])
+
+        local tint = {0,0,0}
+        tint[cor[1]] = 1
+        local texto
+        if(cor[2]>0)then
+          texto = 'Positive '
+        elseif(cor[2] < 0)then
+          texto = 'Negative '
+        end
+        if(cor[1]==1)then
+          texto = texto .. 'Red Potion'
+        elseif(cor[1]==2)then
+          texto = texto .. 'Green Potion'
+        elseif(cor[1]==3)then
+          texto = texto .. 'Blue Potion'
+        else
+          texto = 'Hmm... Soup...'
+        end
+
+        self.setColorTint(tint)
+        printToAll(texto, tint)
+        reminder(color, ing1.name, ing2.name)
+      end
+    end
+end
+
+function getFormula(formula)
+    texto=''
+    if(formula[4] == 1 or formula[4] == 0)then
+      texto = 'R'
+    else
+      texto = 'r'
+    end
+    if(formula[1]<0)then
+      texto = texto .. '-'
+    else
+      texto = texto .. '+'
+    end
+    if(formula[4] == 2 or formula[4] == 0)then
+      texto = texto .. 'G'
+    else
+      texto = texto .. 'g'
+    end
+    if(formula[2]<0)then
+      texto = texto .. '-'
+    else
+      texto = texto .. '+'
+    end
+    if(formula[4] == 3 or formula[4] == 0)then
+      texto = texto .. 'B'
+    else
+      texto = texto .. 'b'
+    end
+    if(formula[3]<0)then
+      texto = texto .. '-'
+    else
+      texto = texto .. '+'
+    end
+    return texto
+end
+
+function getIngredient(texto)
+  for i=1,8 do
+    if ingredientes[i] == texto then
+      return i
+    end
+  end
+  return 0
+end
+
+function combina(ing1, ing2)
+  result = {0,0}
+  --printFormula(ing1)
+  --printFormula(ing2)
+  if(ing1[4] == 0)then
+    for i=1,3 do
+      if(ing1[i] == ing2[i] and i != ing2[4])then
+        result[1] = i
+        result[2] = ing1[i]
+      end
+    end
+  elseif(ing2[4] == 0)then
+    for i=1,3 do
+      if(ing1[i] == ing2[i] and i != ing1[4])then
+        result[1] = i
+        result[2] = ing1[i]
+      end
+    end
+  elseif(ing1[ing1[4]] == ing2[ing1[4]]) then
+    result[1] = ing1[4]
+    result[2] = ing1[ing1[4]]
+  elseif(ing1[ing2[4]] == ing2[ing2[4]]) then
+    result[1] = ing2[4]
+    result[2] = ing1[ing2[4]]
+  end
+  --print(result[1])
+  --print(result[2])
+  return result
+end
+
+function researchGolem()
+  self.clearButtons()
+  self.createButton({click_function = 'testGolem',function_owner=self,label='Test Golem',position={-1,buttony,1.5},width=800})
+  self.createButton({click_function = 'animateGolem',function_owner=self,label='Animate Golem',position={1,buttony,1.5},width=800})
+  if(lastRound)then
+    self.createButton({click_function = 'lastRoundMenu',function_owner=self,label='Back',position={0,buttony,2.5},width=800})
+  else
+    self.createButton({click_function = 'mainMenu',function_owner=self,label='Back',position={0,buttony,2.5},width=800})
+  end
+end
+
+function testGolem(obj, color)
+  if(self.getQuantity()!=1)then
+    printToAll('You need exactly one ingredients to make a potion',{0,0,0})
+  else
+    local tabela = self.getObjects()
+    local ing1 = tabela[1]
+    local i = getIngredient(ing1.name)
+    if(i==0)then
+      printToAll('Invalid ingredient',{0,0,0})
+    else
+      local result = testGolemResult(i)
+      local text = ''
+      if result[1] then
+        if result[2] then
+          text = 'Its chest glows and smoke comes from its ears!'
+        else
+          text = 'Its chest glows!'
+        end
+      elseif result[2] then
+        text = 'Smoke comes from its ears!'
+      else
+        text = 'Nothing happens...'
+      end
+      printToAll(text, {1,1,1})
+      reminder2(color, ing1.name)
+    end
+  end
+end
+
+function testGolemResult(ing)
+  local form = formulas[ing]
+
+  result = {golemReact(form,golemChest),golemReact(form,golemEars)}
+
+  return result
+end
+
+function golemReact(form,golemForm)
+  if golemForm[2] == 1 then
+    return form[4] == 0 or form[4] == golemForm[1]
+  else
+    return form[4] != 0 and form[4] != golemForm[1]
+  end
+end
+
+function animateGolem()
+  if(self.getQuantity()!=2)then
+    printToAll('GO! GOLEM! GO!',{1,1,1})
+    printToAll('You need exactly two ingredients to make a potion',{0,0,0})
+  else
+    local tabela = self.getObjects()
+    local ing1 = tabela[1]
+    local ing2 = tabela[2]
+    local i = getIngredient(ing1.name)
+    local j = getIngredient(ing2.name)
+    if(i==0 or j==0)then
+      printToAll('Invalid ingredient',{0,0,0})
+    else
+      if activateGolem(i) and activateGolem(j) then
+        printToAll('IT\'S ALIVE!', {1,1,1})
+      else
+        printToAll('You failed to animate the Golem.', {1,1,1})
+      end
+      reminder2(color, ing1.name, ing2.name)
+    end
+  end
+end
+
+function activateGolem(ing)
+  local form = formulas[ing]
+  return form[golemEars[1]] == golemEars[2] and form[golemChest[1]] == golemChest[2]
+end

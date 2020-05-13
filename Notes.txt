@@ -1,0 +1,22 @@
+With this commit, I'm moving all the Lua code out of the mod JSON file and
+into an include. The include functionality is not part of the TTS
+implementation of Lua, and is instead done from within the Atom editor.
+
+In other words, the #include statement is never part of the code sent to TTS,
+and instead the editor modifies the code before sending it across. One of the
+consequences of this is that you cannot use the feature in other editors, you
+MUST use the Atom editor.
+
+Furthermore, to use the #include statement that I've got, you need to have the
+files in the same relative location that I do. It expects to find them in the
+Alchemists subdirectory of your normal TTS Saves directory. I recommend using
+a shortcut to get to the relevant location. (A soft link is even better, but
+since most people don't use Linux that's not going to be a typical setup.)
+
+Details about the Atom #include statement are available here:
+http://blog.onelivesleft.com/2017/08/atom-tabletop-simulator-package.html
+
+The reason I'm making this change is that the code is not very readable in the
+format used within the mod JSON file, and as I make additional changes it will
+be much more clear what's going on in the diffs provided by GitHub.
+
